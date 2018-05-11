@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, View, FlatList } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { StackNavigator } from 'react-navigation';
-import LandingScreen from './Landing';
 import ChatScreen from './Chat';
+import UserFormScreen from './InfoForm';
+import LandingScreen from './Landing';
 
 
 
@@ -24,6 +25,9 @@ const StackNavigtor = StackNavigator(
 	  },
 		Chat: {
 			screen: ChatScreen,
+		},
+		Info: {
+			screen: UserFormScreen,
 		}
 	},
 	{

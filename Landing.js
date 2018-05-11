@@ -1,8 +1,7 @@
 import React, { Component } from 'react';
-import { StyleSheet, Text, View, FlatList, Image, TouchableHighlight } from 'react-native';
-import { StackNavigator } from 'react-navigation';
-
+import { FlatList, Image, StyleSheet, Text, TouchableHighlight, View } from 'react-native';
 import data from './data';
+
 
 
 
@@ -92,7 +91,7 @@ export default class LandingScreen extends Component {
 		return (
 			<View>
 				<TouchableHighlight
-					onPress={() => this.props.navigation.navigate('Chat', {data: item})}
+					onPress={() => this.props.navigation.navigate('Info', {data: item})}
 					underlayColor='#ffffff'
 					>
 					<View style={s.flexRow}>
