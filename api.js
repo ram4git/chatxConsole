@@ -36,7 +36,7 @@ export function checkAgentAvailability() {
 
 export function startChatHub(sessionId, onMessageReceived) {
     let connection = new SignalR.HubConnectionBuilder()
-                        .withUrl(`${SIGNALR_CHATHUB_URL}/sessionId`)
+                        .withUrl(`${SIGNALR_CHATHUB_URL}${sessionId}`)
                         .configureLogging(SignalR.LogLevel.Information)
                         .build();
     
@@ -60,7 +60,7 @@ export function startChat({name, email, phone, subject, accountNumber, region, s
                             .withRegion(region)
                             .build();
     const clientInfo = new ClientInfo()
-                            .withCallbackURL(`${SIGNALR_CALLBACK_URL}/sessionId`)
+                            .withCallbackURL(`${SIGNALR_CALLBACK_URL}${sessionId}`)
                             .build();
     const body = {
         entryPoint: ENDPOINT,

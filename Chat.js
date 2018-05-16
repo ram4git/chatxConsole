@@ -45,6 +45,7 @@ export default class ChatScreen extends Component {
 
 	componentDidMount() {
 		const sessionId = GUID();
+		console.log('GENERATED SESSION ID =', sessionId);
 		const { fullName:name, email, phone, accountNumber, question:subject } = this.props.navigation.state.params.data;
 		const messages = [{
 			_id: 1,
@@ -93,7 +94,6 @@ export default class ChatScreen extends Component {
 
 		const { body, messageType } =  messageObj.messages[0];
 		botMessage.text = body;
-		console.log('STATE=', JSON.stringify(GiftedChat.append(this.state.messages, botMessage), null, 2));
 		if(messageType === 'chat' || messageType === 'headline') {
 			this.setState(previousState => ({
 				messages: GiftedChat.append(previousState.messages, botMessage),
@@ -148,7 +148,7 @@ export default class ChatScreen extends Component {
 		//setTimeout(() => this.botSend(botMessage), 1000);
 		console.log('MESSAGE AT SEND = ' + JSON.stringify(botMessage, null, 2));
 		sendMessage({
-			from: 'From App #2',
+			from: fullName,
 			body: botMessage.text,
 			messageType: 'chat'
 		});
@@ -190,6 +190,7 @@ export default class ChatScreen extends Component {
 	}
 
 	render() {
+		const { fullName } = this.props.navigation.state.params.data;
 		return(
 			<View style={s.chatWindow}>
 				<ErrorBoundary>
@@ -207,6 +208,7 @@ export default class ChatScreen extends Component {
 							renderActions={this.renderActions.bind(this)}
 							user={{
 								_id: 1,
+								name: fullName
 							}}
 						/>
 					</ChatContainer>
