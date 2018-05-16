@@ -1,9 +1,15 @@
+import * as SignalR from '@aspnet/signalr';
+import ClientInfo from './chat/ClientInfo';
 import LoginParams from './chat/LoginParams';
 
 const SERVER_URL = 'https://bswegain.bswhealth.org/system';
 const ENDPOINT = 1009;
 const API_VERSION = 'v1';
 const ENTRYPOINT = `${SERVER_URL}/egain/ws/${API_VERSION}/chat/entrypoint`;
+
+const SIGNALR_URL = 'https://dgebdon.azurewebsites.net';
+const SIGNALR_CHATHUB_URL = `${SIGNALR_URL}/chathub?chatSession=`
+const SIGNALR_CALLBACK_URL = `${SIGNALR_URL}/api/message/egain?chatSession=`
 
 const GET_INIT = `${SERVER_URL}/egain/chat/entrypoint/initialize/${ENDPOINT}`;
 const GET_ATTACHMENT = `${ENTRYPOINT}/getAttachment`;
@@ -28,7 +34,22 @@ export function checkAgentAvailability() {
 }
 
 
-export function startChat({name, email, phone, subject, accountNumber, region}) {
+export function startChatHub(sessionId, onMessageReceived) {
+    let connection = new SignalR.HubConnectionBuilder()
+                        .withUrl(`${SIGNALR_CHATHUB_URL}/sessionId`)
+                        .configureLogging(SignalR.LogLevel.Information)
+                        .build();
+    
+    connection.on('ReceiveMessage', (eGainChatSession, message) => { 
+        onMessageReceived(message);
+    });    
+    connection.start()
+        .then((data) => console.log('SUCCESS - Webscoket connection created', data))
+        .catch((error) => console.log('UNABLE TO START WEBSOCKET', error));
+}
+
+
+export function startChat({name, email, phone, subject, accountNumber, region, sessionId}) {
     
     const loginParams = new LoginParams()
                             .withName(name)
@@ -38,20 +59,15 @@ export function startChat({name, email, phone, subject, accountNumber, region}) 
                             .withAccountNumber(accountNumber)
                             .withRegion(region)
                             .build();
+    const clientInfo = new ClientInfo()
+                            .withCallbackURL(`${SIGNALR_CALLBACK_URL}/sessionId`)
+                            .build();
     const body = {
-        "entryPoint": ENDPOINT,
-        "languageCode": "en",
-        "countryCode": "US",
-        "loginParams": loginParams,
-        "clientInfo": {
-          "name": "ThirdPartyService",
-          "referrerName": "testReferrer",
-          "referrerURL": "referrerURL",
-          "clientCallback": {
-            "messageFormat": "json",
-            "callbackURL": "http://egain1206:8080/system/egain/v1/chat/entrypoint/client/apicallback"
-          }
-        }
+        entryPoint: ENDPOINT,
+        languageCode: 'en',
+        countryCode: 'US',
+        loginParams: loginParams,
+        clientInfo: clientInfo
       };
 
     console.log(
@@ -70,10 +86,10 @@ export function startChat({name, email, phone, subject, accountNumber, region}) 
         },
         body: _stringify(body)
     })
-    .then(print)
+    // .then(print)
     .then(res => {
         //console.log('EXTRACTED SESSION ID=', res.headers.map[x-egain-chat-session][0]);
-        console.log('RESPONSE HEADERS=', JSON.stringify(res.headers.map['x-egain-chat-session'], null, 2));
+        //console.log('RESPONSE HEADERS=', JSON.stringify(res.headers.map['x-egain-chat-session'], null, 2));
         SESSION_ID = res.headers.map['x-egain-chat-session'][0];
         return res.json()
     })

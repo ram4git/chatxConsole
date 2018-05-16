@@ -1,9 +1,12 @@
 import React, { Component } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { GiftedChat, Send } from 'react-native-gifted-chat';
-import { sendMessage, startChat } from './api';
+import { NativeModules, StyleSheet, View } from 'react-native';
+import { Bubble, GiftedChat, Send, SystemMessage } from 'react-native-gifted-chat';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import GUID from 'uuid/v1';
+import { sendMessage, startChat, startChatHub } from './api';
 import ChatContainer from './containers/ChatContainer';
 import ErrorBoundary from './containers/ErrorBoundary';
+
 
 const s = StyleSheet.create({
 	chatWindow: {
@@ -41,6 +44,7 @@ export default class ChatScreen extends Component {
 
 
 	componentDidMount() {
+		const sessionId = GUID();
 		const { fullName:name, email, phone, accountNumber, question:subject } = this.props.navigation.state.params.data;
 		const messages = [{
 			_id: 1,
@@ -63,15 +67,76 @@ export default class ChatScreen extends Component {
 		this.setState({
 			messages
 		});
+		startChatHub(sessionId, this.onMessageReceived.bind(this));
 		setTimeout(startChat({
 			name,
 			email,
 			phone,
 			accountNumber,
-			subject
-		}), 2000);
+			subject,
+			sessionId
+		}), 4000);
 		//setTimeout(checkAgentAvailability, 1000);
 	}
+
+	onMessageReceived(message) {
+		console.log('MSG RECVD=' + message);
+
+		const messageObj = JSON.parse(message);
+		const botMessage = {};
+		botMessage._id = Math.round(Math.random() * 1000000);
+		botMessage.user = {
+			_id: 2,
+			avatar: null
+		};
+		botMessage.createdAt =  new Date();
+
+		const { body, messageType } =  messageObj.messages[0];
+		botMessage.text = body;
+		console.log('STATE=', JSON.stringify(GiftedChat.append(this.state.messages, botMessage), null, 2));
+		if(messageType === 'chat' || messageType === 'headline') {
+			this.setState(previousState => ({
+				messages: GiftedChat.append(previousState.messages, botMessage),
+			}));
+		} else if (messageType === 'useraction') {
+			if(body === 'typing_start') {
+				this.setState({
+					isAgentTyping: true
+				});
+			} else if(body === 'typing_stop') {
+				this.setState({
+					isAgentTyping: false
+				});
+			}
+		}
+	}
+
+	renderBubble(props) {
+		return (
+		  <Bubble
+			{...props}
+			wrapperStyle={{
+			  left: {
+				backgroundColor: '#f0f0f0',
+			  }
+			}}
+		  />
+		);
+	  }
+
+	renderSystemMessage(props) {
+		return (
+		  <SystemMessage
+			{...props}
+			containerStyle={{
+			  marginBottom: 15,
+			}}
+			textStyle={{
+			  fontSize: 14,
+			}}
+		  />
+		);
+	  }
 
 	onSend(messages = []) {
 		const botMessage = {...messages[0]};
@@ -80,7 +145,7 @@ export default class ChatScreen extends Component {
 		this.setState((previousState) => ({
 			messages: GiftedChat.append(previousState.messages, [{ ...botMessage }])
 		}));
-		setTimeout(() => this.botSend(botMessage), 1000);
+		//setTimeout(() => this.botSend(botMessage), 1000);
 		console.log('MESSAGE AT SEND = ' + JSON.stringify(botMessage, null, 2));
 		sendMessage({
 			from: 'From App #2',
@@ -94,11 +159,6 @@ export default class ChatScreen extends Component {
 		const alteredBotMessage = botMessage.text.split(' ').join('_');
 		botMessage.text = `You said ${alteredBotMessage}`;
 		botMessage._id = Math.round(Math.random() * 1000000);
-		botMessage.user = {
-			_id: 2,
-			createdAt: new Date()
-		};
-
 		this.setState(previousState => ({
 			messages: GiftedChat.append(previousState.messages, botMessage),
 		}));
@@ -113,6 +173,22 @@ export default class ChatScreen extends Component {
 		);
 	}
 
+	renderActions() {
+		return (
+			<Icon
+				name='plus-circle' 
+				size={40}
+				color='green'
+				onPress={this.launchImageBrowser.bind(this)}
+			/>
+		);
+	}
+
+	launchImageBrowser() {
+		const { ImagePickerManager } = NativeModules;
+		ImagePickerManager.showImagePicker({}, () => {});
+	}
+
 	render() {
 		return(
 			<View style={s.chatWindow}>
@@ -121,11 +197,14 @@ export default class ChatScreen extends Component {
 						<GiftedChat
 							messages={this.state.messages}
 							onSend={messages => this.onSend(messages)}
-							showUserAvatar={false}
+							showUserAvatar={true}
 							showAvatarForEveryMessage={false}
 							renderAvatar={() => null}
 							renderSend={this.renderSend.bind(this)}
 							loadEarlier={true}
+							renderBubble={this.renderBubble.bind(this)}
+							renderSystemMessage={this.renderSystemMessage.bind(this)}
+							renderActions={this.renderActions.bind(this)}
 							user={{
 								_id: 1,
 							}}
