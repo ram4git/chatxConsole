@@ -1,11 +1,15 @@
 import React, { Component } from 'react';
-import { NativeModules, StyleSheet, View } from 'react-native';
-import { Bubble, GiftedChat, Send, SystemMessage } from 'react-native-gifted-chat';
+import { NativeModules, StyleSheet, Text, View } from 'react-native';
+import AnimatedEllipsis from 'react-native-animated-ellipsis';
+import { GiftedChat, MessageText, Send, SystemMessage } from 'react-native-gifted-chat';
+import HTML from 'react-native-render-html';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import GUID from 'uuid/v1';
 import { sendMessage, startChat, startChatHub } from './api';
 import ChatContainer from './containers/ChatContainer';
 import ErrorBoundary from './containers/ErrorBoundary';
+
+
 
 
 const s = StyleSheet.create({
@@ -15,9 +19,20 @@ const s = StyleSheet.create({
 	},
 	send: {
 		backgroundColor: 'red',
-	}
+	},
+	footerContainer: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'center',
+		alignItems: 'center',
+	},
+	footerText: {
+		color: '#bdc3c7'
+	},
+	ellipsis: {
+		letterSpacing: -2,
+	},
 });
-
 
 export default class ChatScreen extends Component {
 	constructor(props) {
@@ -92,16 +107,18 @@ export default class ChatScreen extends Component {
 		};
 		botMessage.createdAt =  new Date();
 
-		const { body, messageType } =  messageObj.messages[0];
+		const { body, messageType, from } =  messageObj.messages[0];
 		botMessage.text = body;
 		if(messageType === 'chat' || messageType === 'headline') {
 			this.setState(previousState => ({
 				messages: GiftedChat.append(previousState.messages, botMessage),
+				isAgentTyping: false,
 			}));
 		} else if (messageType === 'useraction') {
 			if(body === 'typing_start') {
 				this.setState({
-					isAgentTyping: true
+					isAgentTyping: true,
+					agentName: from
 				});
 			} else if(body === 'typing_stop') {
 				this.setState({
@@ -110,19 +127,6 @@ export default class ChatScreen extends Component {
 			}
 		}
 	}
-
-	renderBubble(props) {
-		return (
-		  <Bubble
-			{...props}
-			wrapperStyle={{
-			  left: {
-				backgroundColor: '#f0f0f0',
-			  }
-			}}
-		  />
-		);
-	  }
 
 	renderSystemMessage(props) {
 		return (
@@ -140,6 +144,8 @@ export default class ChatScreen extends Component {
 
 	onSend(messages = []) {
 		const botMessage = {...messages[0]};
+		botMessage.user.avatar =  null;
+
 		const { fullName } = this.props.navigation.state.params.data;
 
 		this.setState((previousState) => ({
@@ -189,6 +195,37 @@ export default class ChatScreen extends Component {
 		ImagePickerManager.showImagePicker({}, () => {});
 	}
 
+
+	renderFooter(props) {
+		if (this.state.isAgentTyping) {
+		  return (
+			<View style={s.footerContainer}>
+			  <Text style={s.footerText}>
+				{`${this.state.agentName} is typing`}<AnimatedEllipsis animationDelay={150} style={s.ellipsis} />
+			  </Text>
+			</View>
+		  );
+		}
+		return null;
+	  }
+
+	  renderMessageText(props) {
+
+		if (props.currentMessage.text) {
+			const { ...messageTextProps } = props;
+			const textColor = props.position === 'right' ? 'white' : 'black';
+			messageTextProps.currentMessage.text = <HTML html={props.currentMessage.text} textSelectable={true} baseFontStyle={{color: textColor}} />;
+			return <MessageText
+			 {...messageTextProps} 
+				textStyle={{
+				left: { marginTop: 10,},
+				right: { marginTop: 10, color: 'white'}
+				}}
+			 />;
+		}
+		return null;
+	  }
+
 	render() {
 		const { fullName } = this.props.navigation.state.params.data;
 		return(
@@ -203,9 +240,11 @@ export default class ChatScreen extends Component {
 							renderAvatar={() => null}
 							renderSend={this.renderSend.bind(this)}
 							loadEarlier={true}
-							renderBubble={this.renderBubble.bind(this)}
+							isAnimated={true}
 							renderSystemMessage={this.renderSystemMessage.bind(this)}
 							renderActions={this.renderActions.bind(this)}
+							renderFooter={this.renderFooter.bind(this)}
+							renderMessageText={this.renderMessageText.bind(this)}
 							user={{
 								_id: 1,
 								name: fullName
