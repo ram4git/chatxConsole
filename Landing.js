@@ -8,6 +8,7 @@ YellowBox.ignoreWarnings([
   'Remote debugger is in a background tab which may cause apps to perform slowly',
 ]);
 console.disableYellowBox = true;
+console.error = (error) => error.apply;
 
 
 const s = StyleSheet.create({

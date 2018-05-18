@@ -60,14 +60,14 @@ export default class ChatScreen extends Component {
 
 	componentDidMount() {
 		const sessionId = GUID();
-		console.log('GENERATED SESSION ID =', sessionId);
-		const { fullName:name, email, phone, accountNumber, question:subject } = this.props.navigation.state.params.data;
+		const { fullName:name = '', email, phone, accountNumber, question:subject } = this.props.navigation.state.params.data;
 		const messages = [{
 			_id: 1,
-			text: `Hello ${name}, please confirm your details while we begin to help you! ${email ? `\n Email: ${email}` : ''} ${phone ? `\n Phone: ${phone}` : ''} ${accountNumber ? `\n Account Number: ${accountNumber}` : ''}`,
+			text: `Hello ${name} <br />please confirm your details while we begin to help you! <br /> ${email ? `<strong>Email</strong>: ${email} <br />` : ''} ${phone ? `<strong>Phone</strong>: ${phone}<br />` : ''} ${accountNumber ? `<strong>Account Number</strong>: ${accountNumber}<br />` : ''}`,
 			createdAt: new Date(),
 			user: {
 				_id: 2,
+				avatar: null
 			},
 		}];
 		if (subject) {
@@ -218,8 +218,8 @@ export default class ChatScreen extends Component {
 			return <MessageText
 			 {...messageTextProps} 
 				textStyle={{
-				left: { marginTop: 10,},
-				right: { marginTop: 10, color: 'white'}
+				left: { marginTop: 12,},
+				right: { marginTop: 12, color: 'white'}
 				}}
 			 />;
 		}
