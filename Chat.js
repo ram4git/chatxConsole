@@ -1,12 +1,11 @@
 import React, { Component } from 'react';
-import { NativeModules, Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import AnimatedEllipsis from 'react-native-animated-ellipsis';
 import { GiftedChat, MessageText, Send, SystemMessage } from 'react-native-gifted-chat';
 import HTML from 'react-native-render-html';
-import Icon from 'react-native-vector-icons/FontAwesome';
 import GUID from 'uuid/v1';
 import CustomActions from './CustomActions';
-import { acceptAttachement, sendAttachment, sendMessage, startChat, startChatHub } from './api';
+import { acceptAttachment, sendAttachment, sendMessage, startChat, startChatHub } from './api';
 import ChatContainer from './containers/ChatContainer';
 import ErrorBoundary from './containers/ErrorBoundary';
  
@@ -60,7 +59,7 @@ export default class ChatScreen extends Component {
 
 	componentDidMount() {
 		const sessionId = GUID();
-		const { fullName:name = '', email, phone, accountNumber, question:subject } = this.props.navigation.state.params.data;
+		const { fullName:name = '', email, phone, accountNumber, question:subject = 'Hello!' } = this.props.navigation.state.params.data;
 		const modifiedSubject = `<strong>${subject}</strong> <br />My details are <br /> <em>${name ? `<strong>Name</strong>: ${name} <br />` : ''} ${email ? `<strong>Email</strong>: ${email} <br />` : ''} ${phone ? `<strong>Phone</strong>: ${phone}<br />` : ''} ${accountNumber ? `<strong>Account Number</strong>: ${accountNumber}<br />` : ''}</em>`;
 		const messages = GiftedChat.append([], [{ 
 			text: modifiedSubject,
@@ -110,7 +109,24 @@ export default class ChatScreen extends Component {
 				headlineParam.forEach(p => {
 					attachmentProps[p.paramKey] = p.paramValue;
 				});
-				acceptAttachement(attachmentProps);
+				this.setState({
+					isAgentUploading: true,
+				});
+				acceptAttachment(attachmentProps)
+				.then(resp => {
+					const attachmentMsg = {};
+					attachmentMsg._id = Math.round(Math.random() * 1000000);
+					attachmentMsg.image = resp;
+					attachmentMsg.user = {
+						_id: 2,
+						avatar: null
+					};
+					attachmentMsg.createdAt =  new Date();
+					this.setState(previousState => ({
+						messages: GiftedChat.append(previousState.messages, attachmentMsg),
+						isAgentUploading: false,
+					}));
+				});
 			} else {
 				this.setState(previousState => ({
 					messages: GiftedChat.append(previousState.messages, botMessage),
@@ -229,35 +245,36 @@ export default class ChatScreen extends Component {
 		);
 	}
 
-	renderActions() {
-		return (
-			<Icon
-				name='plus-circle' 
-				size={40}
-				color='green'
-				onPress={this.launchImageBrowser.bind(this)}
-			/>
-		);
-	}
+	// renderActions() {
+	// 	return (
+	// 		<Icon
+	// 			name='plus-circle' 
+	// 			size={60}
+	// 			color='green'
+	// 			onPress={this.launchImageBrowser.bind(this)}
+	// 		/>
+	// 	);
+	// }
 
-	launchImageBrowser() {
-		const { ImagePickerManager } = NativeModules;
-		ImagePickerManager.showImagePicker({}, () => {});
-	}
+	// launchImageBrowser() {
+	// 	const { ImagePickerManager } = NativeModules;
+	// 	ImagePickerManager.showImagePicker({}, () => {});
+	// }
 
 
 	renderFooter(props) {
-		if (this.state.isAgentTyping) {
-		  return (
+		const { isAgentTyping, isAgentUploading } = this.state;
+		if (isAgentTyping || isAgentUploading) {
+			return (
 			<View style={s.footerContainer}>
-			  <Text style={s.footerText}>
-				{`${this.state.agentName} is typing`}<AnimatedEllipsis animationDelay={150} style={s.ellipsis} />
-			  </Text>
+				<Text style={s.footerText}>
+				{`${this.state.agentName} is ${isAgentTyping ? 'typing' : 'uploading'}`}<AnimatedEllipsis animationDelay={150} style={s.ellipsis} />
+				</Text>
 			</View>
-		  );
+			);
 		}
 		return null;
-	  }
+	}
 
 	  renderMessageText(props) {
 

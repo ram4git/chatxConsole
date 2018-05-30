@@ -4,6 +4,7 @@ import ClientInfo from './chat/ClientInfo';
 import LoginParams from './chat/LoginParams';
 
 
+
 const SERVER_URL = 'https://bswegain.bswhealth.org/system';
 const ENDPOINT = 1009;
 const API_VERSION = 'v1';
@@ -116,26 +117,71 @@ export function sendMessage(body) {
     });
 }
 
-export function acceptAttachement(data) {
+export function acceptAttachment(data) {
     console.log('ACCEPT ATTACHMENT=', JSON.stringify(data, null, 2));
 
-    fetch(`${POST_ACCEPT_ATTACHMENT}/${data.attachmentId}`, {
+    let formBody = [];
+    const encodedKey = encodeURIComponent('attachmentName');
+    const encodedValue = encodeURIComponent(data.attachmentName);
+    formBody.push(encodedKey + "=" + encodedValue);
+    formBody = formBody.join("&");
+
+
+    return fetch(`${POST_ACCEPT_ATTACHMENT}/${data.attachmentId}`, {
         method: 'post',
-        credentials: 'include',
         headers: {
-            'Accept': data.acceptAttachment,
+            'Accept': 'application/json, application/xml',
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-egain-chat-session': SESSION_ID,
-            'Cache': 'no-cache'
         },
-        body: _stringify({attachmentName: data.attachmentName}),
+        body: formBody
     })
-    .then(print)
-    .then(status)
+    .then((response) => {
+        print(response);
+        if (response.ok) {
+            return response;
+        } else {
+        let errorMessage = `${response.status} (${response.statusText})`,
+            error = new Error(errorMessage);
+        throw(error);
+        }
+    })
+    .then(response => {
+        console.log('CALLING GET ATTACHMENT');
+        return getAttachment(data.attachmentId)
+    })
     .catch(error => {
         console.log('ACCEPT ATTACHMENT FAILED', JSON.stringify(error, null, 2));
     });
 
+}
+
+export function getAttachment(attachmentId){
+    console.log('IN GET ATTACHMENT');
+    return fetch(`${GET_ATTACHMENT}/${attachmentId}`, {
+        headers: {
+            'Accept': 'application/json, application/xml',
+            'X-egain-chat-session': SESSION_ID,
+        },
+    })
+    .then(response => {
+        print(response);
+        if (response.ok) {
+            return response;
+        } else {
+            const errorMessage = `${response.status} (${response.statusText})`;
+            throw(new Error(errorMessage));
+        }
+    })
+	.then(function(response) {
+        return response.blob();
+    })
+    .then(function(imageBlob) {
+        return URL.createObjectURL(imageBlob);
+    })
+    .catch(error => {
+        console.log('ACCEPT GET FAILED', JSON.stringify(error, null, 2));
+    })
 }
 
 export function sendAttachment(data) {
@@ -177,7 +223,7 @@ export function sendAttachmentNotification(data) {
         body: formBody,
     })
     .then(print)
-    .then(uploadAttachment(data))
+    .then(this.uploadAttachment(data))
     .catch(error => {
         console.log('ACCEPT ATTACHMENT NOTIFICATION FAILED', JSON.stringify(error, null, 2));
     });
@@ -187,6 +233,7 @@ export function uploadAttachment(data) {
     console.log('UPLOAD ATTACHMENT=', JSON.stringify(data, null, 2));
     const formData = new FormData();
     formData.append('fileId', data.fileId);
+    formData.append(data.fileInternalName,)
 
 
     fetch(POST_UPLOAD_ATTACHMENT, {

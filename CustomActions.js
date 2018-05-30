@@ -147,6 +147,7 @@ export default class CustomActions extends React.Component {
             selectSingleItem={true}
             callback={this.selectImages}
             selected={[]}
+            assetType='Photos'
           />
         </Modal>
         {this.renderIcon()}
