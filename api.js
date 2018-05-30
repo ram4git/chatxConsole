@@ -1,6 +1,8 @@
 import * as SignalR from '@aspnet/signalr';
+import GUID from 'uuid/v1';
 import ClientInfo from './chat/ClientInfo';
 import LoginParams from './chat/LoginParams';
+
 
 const SERVER_URL = 'https://bswegain.bswhealth.org/system';
 const ENDPOINT = 1009;
@@ -70,12 +72,6 @@ export function startChat({name, email, phone, subject, accountNumber, region, s
         clientInfo: clientInfo
       };
 
-    console.log(
-        `
-        URL = ${POST_START}
-        BODY = ${_stringify(body)}
-        `
-    );
     fetch(POST_START,{
         method: 'post',
         credentials: 'same-origin',
@@ -118,6 +114,98 @@ export function sendMessage(body) {
     .catch(error => {
         console.log('SEND MESSAGE FAILED', JSON.stringify(error, null, 2));
     });
+}
+
+export function acceptAttachement(data) {
+    console.log('ACCEPT ATTACHMENT=', JSON.stringify(data, null, 2));
+
+    fetch(`${POST_ACCEPT_ATTACHMENT}/${data.attachmentId}`, {
+        method: 'post',
+        credentials: 'include',
+        headers: {
+            'Accept': data.acceptAttachment,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-egain-chat-session': SESSION_ID,
+            'Cache': 'no-cache'
+        },
+        body: _stringify({attachmentName: data.attachmentName}),
+    })
+    .then(print)
+    .then(status)
+    .catch(error => {
+        console.log('ACCEPT ATTACHMENT FAILED', JSON.stringify(error, null, 2));
+    });
+
+}
+
+export function sendAttachment(data) {
+    const attachmentId = GUID();
+    data.fileId = attachmentId;
+    data.fileInternalName = `${attachmentId}_${data.fileName}`;
+    data.fileSize = 13289;
+
+    sendAttachmentNotification(data);
+
+}
+
+export function sendAttachmentNotification(data) {
+    console.log('UPLOAD ATTACHMENT NOTIFICATION=', JSON.stringify(data, null, 2));
+    const { fileInternalName, fileSize, fileId, fileName } = data;
+    const payload = {
+        fileInternalName,
+        fileSize,
+        fileId,
+        fileName,
+    };
+
+    let formBody = [];
+    for (const property in payload) {
+        const encodedKey = encodeURIComponent(property);
+        const encodedValue = encodeURIComponent(payload[property]);
+        formBody.push(encodedKey + "=" + encodedValue);
+    }
+    formBody = formBody.join("&");
+
+    fetch(POST_ATTACHMENT_NOTIFICATION, {
+        method: 'post',
+        credentials: 'include',
+        headers: {
+            'Accept': 'application/json, application/xml',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-egain-chat-session': SESSION_ID,
+        },
+        body: formBody,
+    })
+    .then(print)
+    .then(uploadAttachment(data))
+    .catch(error => {
+        console.log('ACCEPT ATTACHMENT NOTIFICATION FAILED', JSON.stringify(error, null, 2));
+    });
+}
+
+export function uploadAttachment(data) {
+    console.log('UPLOAD ATTACHMENT=', JSON.stringify(data, null, 2));
+    const formData = new FormData();
+    formData.append('fileId', data.fileId);
+
+
+    fetch(POST_UPLOAD_ATTACHMENT, {
+        method: 'post',
+        credentials: 'include',
+        headers: {
+            'Accept': data.acceptAttachment,
+            'Content-Type': 'multipart/form-data',
+            'X-egain-chat-session': SESSION_ID,
+        },
+        body: formData,
+    })
+    .then(print)
+    .then(status)
+    .catch(error => {
+        console.log('ACCEPT ATTACHMENT FAILED', JSON.stringify(error, null, 2));
+    });
+
+
 }
 
 function _stringify(body) {

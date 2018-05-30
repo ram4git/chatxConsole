@@ -50,6 +50,7 @@ export default class InfoForm extends Component {
 				<TextField
 					label='Email'
 					value={this.state.email}
+					required={true}
 					onChangeText={this.onFieldValueChange.bind(this, 'email')}
 				/>
 				<TextField
@@ -83,8 +84,9 @@ export default class InfoForm extends Component {
 const s = StyleSheet.create({
 	container: {
 		flex: 1,
-		marginLeft: 20,
-		marginRight: 20
+		paddingLeft: 20,
+		paddingRight: 20,
+		backgroundColor: 'white'
 	},
 	textArea: {
 		height: 160

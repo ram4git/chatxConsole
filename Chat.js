@@ -1,15 +1,15 @@
 import React, { Component } from 'react';
-import { NativeModules, StyleSheet, Text, View } from 'react-native';
+import { NativeModules, Platform, StyleSheet, Text, View } from 'react-native';
 import AnimatedEllipsis from 'react-native-animated-ellipsis';
 import { GiftedChat, MessageText, Send, SystemMessage } from 'react-native-gifted-chat';
 import HTML from 'react-native-render-html';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import GUID from 'uuid/v1';
-import { sendMessage, startChat, startChatHub } from './api';
+import CustomActions from './CustomActions';
+import { acceptAttachement, sendAttachment, sendMessage, startChat, startChatHub } from './api';
 import ChatContainer from './containers/ChatContainer';
 import ErrorBoundary from './containers/ErrorBoundary';
-
-
+ 
 
 
 const s = StyleSheet.create({
@@ -27,7 +27,7 @@ const s = StyleSheet.create({
 		alignItems: 'center',
 	},
 	footerText: {
-		color: '#bdc3c7'
+		color: '#d35400'
 	},
 	ellipsis: {
 		letterSpacing: -2,
@@ -61,25 +61,18 @@ export default class ChatScreen extends Component {
 	componentDidMount() {
 		const sessionId = GUID();
 		const { fullName:name = '', email, phone, accountNumber, question:subject } = this.props.navigation.state.params.data;
-		const messages = [{
-			_id: 1,
-			text: `Hello ${name} <br />please confirm your details while we begin to help you! <br /> ${email ? `<strong>Email</strong>: ${email} <br />` : ''} ${phone ? `<strong>Phone</strong>: ${phone}<br />` : ''} ${accountNumber ? `<strong>Account Number</strong>: ${accountNumber}<br />` : ''}`,
+		const modifiedSubject = `<strong>${subject}</strong> <br />My details are <br /> <em>${name ? `<strong>Name</strong>: ${name} <br />` : ''} ${email ? `<strong>Email</strong>: ${email} <br />` : ''} ${phone ? `<strong>Phone</strong>: ${phone}<br />` : ''} ${accountNumber ? `<strong>Account Number</strong>: ${accountNumber}<br />` : ''}</em>`;
+		const messages = GiftedChat.append([], [{ 
+			text: modifiedSubject,
 			createdAt: new Date(),
+			_id: Math.round(Math.random() * 1000000),
 			user: {
-				_id: 2,
-				avatar: null
+				_id: 1,
+				avatar: null,
+				name
 			},
-		}];
-		if (subject) {
-			messages.push({
-				_id: 2,
-				text: `${subject}`,
-				createdAt: new Date(),
-				user: {
-					_id: 1,
-				},
-			});
-		}
+		 }]);
+		 
 		this.setState({
 			messages
 		});
@@ -89,7 +82,7 @@ export default class ChatScreen extends Component {
 			email,
 			phone,
 			accountNumber,
-			subject,
+			subject: modifiedSubject,
 			sessionId
 		}), 4000);
 		//setTimeout(checkAgentAvailability, 1000);
@@ -108,12 +101,23 @@ export default class ChatScreen extends Component {
 		botMessage.createdAt =  new Date();
 
 		const { body, messageType, from } =  messageObj.messages[0];
-		botMessage.text = body;
+		const processedBody = this.handleEmoticons(body);
+		botMessage.text = processedBody;
 		if(messageType === 'chat' || messageType === 'headline') {
-			this.setState(previousState => ({
-				messages: GiftedChat.append(previousState.messages, botMessage),
-				isAgentTyping: false,
-			}));
+			if(body === 'AgentInitiateAttachment') {
+				const { headlineParam } = messageObj.messages[0]['headlineData'];
+				const attachmentProps = {};
+				headlineParam.forEach(p => {
+					attachmentProps[p.paramKey] = p.paramValue;
+				});
+				acceptAttachement(attachmentProps);
+			} else {
+				this.setState(previousState => ({
+					messages: GiftedChat.append(previousState.messages, botMessage),
+					isAgentTyping: false,
+				}));
+			}
+
 		} else if (messageType === 'useraction') {
 			if(body === 'typing_start') {
 				this.setState({
@@ -153,11 +157,57 @@ export default class ChatScreen extends Component {
 		}));
 		//setTimeout(() => this.botSend(botMessage), 1000);
 		console.log('MESSAGE AT SEND = ' + JSON.stringify(botMessage, null, 2));
-		sendMessage({
-			from: fullName,
-			body: botMessage.text,
-			messageType: 'chat'
-		});
+		const { image, text } = botMessage;
+		if(text) {
+			sendMessage({
+				from: fullName,
+				body: botMessage.text,
+				messageType: 'chat'
+			});
+		} else if(image) {
+			sendAttachment({
+				...botMessage,
+				from: fullName,
+			});
+		}
+
+	}
+
+	handleEmoticons(body) {
+		const regex = /^(.*)<img .* src=\"\/system\/web\/view\/live\/agent\/reply\/\.\.\/\.\.\/\.\.\/\.\.\/common\/ckeditor\/plugins\/smiley\/images\/(.*)\.gif\" .*\/>(.*)$/g;
+		const match = regex.exec(body);
+		if(match) {
+			const emoticonToReplace = this.getMatchingEmoticon(match[2]);
+			return `${match[1]}${emoticonToReplace}${match[3]}`
+		}
+		return body;
+	}
+
+	getMatchingEmoticon(key) {
+		const map = {
+			regular_smile: '😀',
+			sad_smile: '😫',
+			wink_smile: '😉',
+			teeth_smile: '😁',
+			confused_smile: '😬',
+			tounge_smile: '😛',
+			embaressed_smile: '😳',
+			omg_smile: '😲',
+			whatchutalkingabout_smile: '😏',
+			angry_smile: '😡',
+			angel_smile: '😇',
+			shades_smile: '😎',
+			devil_smile: '😈',
+			cry_smile: '😭',
+			lightbulb: '💡',
+			thumbs_down: '👎',
+			thumbs_up: '👍',
+			heart: '❤️',
+			broken_heart: '💔',
+			kiss: '💋',
+			envelope: '✉️'
+		}
+		return map[key]
 	}
 
 	botSend(message) {
@@ -218,15 +268,41 @@ export default class ChatScreen extends Component {
 			return <MessageText
 			 {...messageTextProps} 
 				textStyle={{
-				left: { marginTop: 12,},
-				right: { marginTop: 12, color: 'white'}
+				left: { marginTop: 8,},
+				right: { marginTop: 8, color: 'white'}
 				}}
 			 />;
 		}
 		return null;
 	  }
 
+	renderCustomActions(props) {
+	if (Platform.OS === 'ios') {
+		return (
+		<CustomActions
+			{...props}
+		/>
+		);
+	}
+	const options = {
+		'Action 1': (props) => {
+		alert('option 1');
+		},
+		'Action 2': (props) => {
+		alert('option 2');
+		},
+		'Cancel': () => {},
+	};
+	return (
+		<Actions
+		{...props}
+		options={options}
+		/>
+	);
+	}
+
 	render() {
+		console.log('MESSAGES=', JSON.stringify(this.state.messages, null, 2));
 		const { fullName } = this.props.navigation.state.params.data;
 		return(
 			<View style={s.chatWindow}>
@@ -241,8 +317,8 @@ export default class ChatScreen extends Component {
 							renderSend={this.renderSend.bind(this)}
 							loadEarlier={true}
 							isAnimated={true}
+							renderActions={this.renderCustomActions.bind(this)}
 							renderSystemMessage={this.renderSystemMessage.bind(this)}
-							renderActions={this.renderActions.bind(this)}
 							renderFooter={this.renderFooter.bind(this)}
 							renderMessageText={this.renderMessageText.bind(this)}
 							user={{

@@ -46,9 +46,22 @@ const s = StyleSheet.create({
 		marginLeft: 25,
 	},
 
+	waitTimeRed: {
+		fontSize: 10,
+		color: '#e67e22',
+		marginLeft: 25,
+	},
+
+	waitTimeGreen: {
+		fontSize: 10,
+		color: '#27ae60',
+		marginLeft: 25,
+	},
+
 	rightArrowimageStyle: {
 		marginRight: 25,
 		marginLeft: 'auto',
+		marginTop: 8
 	},
 
 	flatList: {
@@ -94,6 +107,8 @@ export default class LandingScreen extends Component {
 
 
 	renderListItem(item) {
+		const waitTime = Math.floor(Math.random() * 7);
+		const agentWaitTimeText = waitTime > 3 ? `wait time: ${waitTime-3} min${waitTime>4 ? 's' : ''}` : 'agent available'
 		return (
 			<View>
 				<TouchableHighlight
@@ -101,9 +116,13 @@ export default class LandingScreen extends Component {
 					underlayColor='#ffffff'
 					>
 					<View style={s.flexRow}>
-						<Text style={s.bottomTextStyle}>{item.title}</Text>
+						<View>
+							<Text style={s.bottomTextStyle}>{item.title}</Text>
+							<Text style={waitTime > 3 ? s.waitTimeRed : s.waitTimeGreen }>{agentWaitTimeText}</Text>
+						</View>
 						<Image style={s.rightArrowimageStyle} source={require('./images/btnArrowRight.ios.png')} />
 					</View>
+
 				</TouchableHighlight>
 			</View>
 		);
