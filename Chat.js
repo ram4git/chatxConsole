@@ -3,11 +3,13 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import AnimatedEllipsis from 'react-native-animated-ellipsis';
 import { GiftedChat, MessageText, Send, SystemMessage } from 'react-native-gifted-chat';
 import HTML from 'react-native-render-html';
+import Icon from 'react-native-vector-icons/Ionicons';
 import GUID from 'uuid/v1';
 import CustomActions from './CustomActions';
-import { acceptAttachment, endChat, sendAttachment, sendMessage, startChat, startChatHub } from './api';
+import { acceptAttachment, endChat, sendAttachment, sendMessage, setChatBeginTime, startChat, startChatHub } from './api';
 import ChatContainer from './containers/ChatContainer';
 import ErrorBoundary from './containers/ErrorBoundary';
+
  
 
 
@@ -53,6 +55,8 @@ export default class ChatScreen extends Component {
 			headerTitleStyle: {
 				fontSize: 18,
 			},
+            headerLeft: <Icon name='md-close' size={28} style={{marginLeft: 10}} onPress={() => navigation.navigate('Feedback', {data: {...this.state}})} color='white' />
+
 		}
 	);
 
@@ -73,18 +77,17 @@ export default class ChatScreen extends Component {
 		 }]);
 		 
 		this.setState({
-			messages
+			messages,
 		});
-		startChatHub(sessionId, this.onMessageReceived.bind(this));
-		setTimeout(startChat({
+		startChatHub(sessionId, this.onMessageReceived.bind(this))
+		.then(startChat({
 			name,
 			email,
 			phone,
 			accountNumber,
 			subject: modifiedSubject,
 			sessionId
-		}), 4000);
-		//setTimeout(checkAgentAvailability, 1000);
+		}));
 	}
 
 	componentWillUnmount() {
@@ -107,6 +110,14 @@ export default class ChatScreen extends Component {
 		const { body, messageType, from } =  messageObj.messages[0];
 		const processedBody = this.handleEmoticons(body);
 		botMessage.text = processedBody;
+
+		//
+		const regex = /^You are now chatting with .*$/g;
+		const match = regex.exec(body);
+		if(match) {
+			setChatBeginTime();
+		}
+
 		if(messageType === 'chat' || messageType === 'headline') {
 			if(body === 'AgentInitiateAttachment') {
 				const { headlineParam } = messageObj.messages[0]['headlineData'];
@@ -176,7 +187,7 @@ export default class ChatScreen extends Component {
 		this.setState((previousState) => ({
 			messages: GiftedChat.append(previousState.messages, [{ ...botMessage }])
 		}));
-		//setTimeout(() => this.botSend(botMessage), 1000);
+
 		console.log('MESSAGE AT SEND = ' + JSON.stringify(botMessage, null, 2));
 		const { image, text } = botMessage;
 		if(text) {

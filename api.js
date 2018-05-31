@@ -1,7 +1,9 @@
 import * as SignalR from '@aspnet/signalr';
+import moment from 'moment';
 import GUID from 'uuid/v1';
 import ClientInfo from './chat/ClientInfo';
 import LoginParams from './chat/LoginParams';
+
 
 
 
@@ -28,6 +30,10 @@ const POST_REJECT_ATTACHMENT = `${ENTRYPOINT}/rejectAttachment`;
 const PUT_UPDATE_CALLBACK = `${ENTRYPOINT}/updateCallback`;
 
 let SESSION_ID = '';
+let START_TIME = '  ';
+let END_TIME = '';
+let CHAT_BEGIN_TIME = '';
+
 
 export function checkAgentAvailability() {
     // TODO Implement
@@ -36,6 +42,17 @@ export function checkAgentAvailability() {
     .then( res => console.log('IN FETCH API', res));
 }
 
+export function setChatBeginTime() {
+    CHAT_BEGIN_TIME = new Date();
+}
+
+export function getStats() {
+
+    return {
+        sessionTime: moment(END_TIME).from(START_TIME, true),
+        waitTime: moment(CHAT_BEGIN_TIME).from(START_TIME, true)
+    }
+}
 
 export function startChatHub(sessionId, onMessageReceived) {
     let connection = new SignalR.HubConnectionBuilder()
@@ -43,11 +60,13 @@ export function startChatHub(sessionId, onMessageReceived) {
                         .configureLogging(SignalR.LogLevel.Information)
                         .build();
     
+    
     connection.on('ReceiveMessage', (eGainChatSession, message) => { 
         onMessageReceived(message);
-    });    
-    connection.start()
-        .then((data) => console.log('SUCCESS - Webscoket connection created', data))
+    });
+    START_TIME = new Date();
+    return connection.start()
+        .then((data) => console.log('SUCCESS - Webscoket connection created', JSON.stringify(data, null, 2)))
         .catch((error) => console.log('UNABLE TO START WEBSOCKET', error));
 }
 
@@ -58,6 +77,7 @@ export function endChat() {
     formBody.push(encodedKey + "=" + encodedValue);
     formBody = formBody.join("&");
 
+    END_TIME = new Date();
     fetch(POST_END, {
         method: 'post',
         headers: {
