@@ -5,7 +5,7 @@ import { GiftedChat, MessageText, Send, SystemMessage } from 'react-native-gifte
 import HTML from 'react-native-render-html';
 import GUID from 'uuid/v1';
 import CustomActions from './CustomActions';
-import { acceptAttachment, sendAttachment, sendMessage, startChat, startChatHub } from './api';
+import { acceptAttachment, endChat, sendAttachment, sendMessage, startChat, startChatHub } from './api';
 import ChatContainer from './containers/ChatContainer';
 import ErrorBoundary from './containers/ErrorBoundary';
  
@@ -86,6 +86,11 @@ export default class ChatScreen extends Component {
 		}), 4000);
 		//setTimeout(checkAgentAvailability, 1000);
 	}
+
+	componentWillUnmount() {
+		endChat();
+	}
+	
 
 	onMessageReceived(message) {
 		console.log('MSG RECVD=' + message);

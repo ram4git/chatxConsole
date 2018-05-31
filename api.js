@@ -51,6 +51,37 @@ export function startChatHub(sessionId, onMessageReceived) {
         .catch((error) => console.log('UNABLE TO START WEBSOCKET', error));
 }
 
+export function endChat() {
+    let formBody = [];
+    const encodedKey = encodeURIComponent('attachmentName');
+    const encodedValue = encodeURIComponent('dummy');
+    formBody.push(encodedKey + "=" + encodedValue);
+    formBody = formBody.join("&");
+
+    fetch(POST_END, {
+        method: 'post',
+        headers: {
+            'Accept': 'application/json, application/xml',
+            'Content-Type': 'application/json',
+            'X-egain-chat-session': SESSION_ID,
+        },
+        body: _stringify({})
+    })
+    .then((response) => {
+        print(response);
+        if (response.ok) {
+            return response;
+        } else {
+        let errorMessage = `${response.status} (${response.statusText})`,
+            error = new Error(errorMessage);
+        throw(error);
+        }
+    })
+    .catch(error => {
+        console.log('END CHAT FAILED', JSON.stringify(error, null, 2));
+    })
+}
+
 
 export function startChat({name, email, phone, subject, accountNumber, region, sessionId}) {
     
