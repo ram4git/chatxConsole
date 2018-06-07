@@ -15,8 +15,6 @@ This is sample analytics for Chat Client
 ![Alt text](./imgs/chat1.png?raw=true "Chat 1")
 ### 2
 ![Alt text](./imgs/chat2.png?raw=true "Chat 2")
-### 3
-![Alt text](./imgs/chat3.png?raw=true "Chat 3")
 
 
 ## FEEDBACK
