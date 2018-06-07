@@ -44,13 +44,13 @@ export default class InfoForm extends Component {
 			<ScrollView style={s.container}>
 				<TextField
 					label='Full Name'
+					required={true}
 					value={this.state.fullName}
 					onChangeText={this.onFieldValueChange.bind(this, 'fullName')}
 				/>
 				<TextField
 					label='Email'
 					value={this.state.email}
-					required={true}
 					onChangeText={this.onFieldValueChange.bind(this, 'email')}
 				/>
 				<TextField
@@ -72,6 +72,7 @@ export default class InfoForm extends Component {
 				/>
 				<Button
 					style={s.button}
+					disabled={!this.state.fullName}
 					onPress={() => this.props.navigation.navigate('Chat', {data: {...this.state, ...data}})}
 					title='Start Chat'
 				/>

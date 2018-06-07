@@ -41,6 +41,7 @@ export default class ChatScreen extends Component {
 		this.state = {
 			messages: []
 		};
+		this.sessionId = GUID();
 	}
 
 	static navigationOptions = ({navigation}) => (
@@ -55,14 +56,19 @@ export default class ChatScreen extends Component {
 			headerTitleStyle: {
 				fontSize: 18,
 			},
-            headerLeft: <Icon name='md-close' size={28} style={{marginLeft: 10}} onPress={() => navigation.navigate('Feedback', {data: {...this.state}})} color='white' />
+            headerLeft: <Icon name='md-close' size={28} style={{marginLeft: 10}} onPress={() => {
+				endChat(this.sessionId);
+				navigation.navigate('Feedback', {data: {...this.state, sessionId: this.sessionId}})}
+			} color='white' />
 
 		}
 	);
 
-
+	componentWillUnmount() {
+	  console.log('AABBCC');
+	}
+	
 	componentDidMount() {
-		const sessionId = GUID();
 		const { fullName:name = '', email, phone, accountNumber, question:subject = 'Hello!' } = this.props.navigation.state.params.data;
 		const modifiedSubject = `<strong>${subject}</strong> <br />My details are <br /> <em>${name ? `<strong>Name</strong>: ${name} <br />` : ''} ${email ? `<strong>Email</strong>: ${email} <br />` : ''} ${phone ? `<strong>Phone</strong>: ${phone}<br />` : ''} ${accountNumber ? `<strong>Account Number</strong>: ${accountNumber}<br />` : ''}</em>`;
 		const messages = GiftedChat.append([], [{ 
@@ -79,21 +85,22 @@ export default class ChatScreen extends Component {
 		this.setState({
 			messages,
 		});
-		startChatHub(sessionId, this.onMessageReceived.bind(this))
-		.then(startChat({
-			name,
-			email,
-			phone,
-			accountNumber,
-			subject: modifiedSubject,
-			sessionId
-		}));
+		startChatHub(this.sessionId, this.onMessageReceived.bind(this))
+		.then(
+			startChat({
+				name,
+				email,
+				phone,
+				accountNumber,
+				subject: modifiedSubject,
+				sessionId: this.sessionId}
+			)
+			.then(data => {
+				console.log('CHAT STARTED, SESSION-ID=', JSON.stringify(data, null, 2));
+			})
+		);
 	}
 
-	componentWillUnmount() {
-		endChat();
-	}
-	
 
 	onMessageReceived(message) {
 		console.log('MSG RECVD=' + message);
@@ -161,6 +168,9 @@ export default class ChatScreen extends Component {
 					isAgentTyping: false
 				});
 			}
+		}  else if (messageType == 'terminate') {
+			endChat(this.sessionId);
+			this.props.navigation.navigate('Feedback', {data: {...this.state}});
 		}
 	}
 
@@ -297,7 +307,7 @@ export default class ChatScreen extends Component {
 		if (props.currentMessage.text) {
 			const { ...messageTextProps } = props;
 			const textColor = props.position === 'right' ? 'white' : 'black';
-			messageTextProps.currentMessage.text = <HTML html={props.currentMessage.text} textSelectable={true} baseFontStyle={{color: textColor}} />;
+			messageTextProps.currentMessage.text = this._isHtml(props.currentMessage.text) ? <HTML html={props.currentMessage.text} baseFontStyle={{color: textColor, fontSize: 16}} /> : props.currentMessage.text;
 			return <MessageText
 			 {...messageTextProps} 
 				textStyle={{
@@ -310,28 +320,37 @@ export default class ChatScreen extends Component {
 	  }
 
 	renderCustomActions(props) {
-	if (Platform.OS === 'ios') {
+		if (Platform.OS === 'ios') {
+			return (
+			<CustomActions
+				{...props}
+			/>
+			);
+		}
+		const options = {
+			'Action 1': (props) => {
+			alert('option 1');
+			},
+			'Action 2': (props) => {
+			alert('option 2');
+			},
+			'Cancel': () => {},
+		};
 		return (
-		<CustomActions
+			<Actions
 			{...props}
-		/>
+			options={options}
+			/>
 		);
 	}
-	const options = {
-		'Action 1': (props) => {
-		alert('option 1');
-		},
-		'Action 2': (props) => {
-		alert('option 2');
-		},
-		'Cancel': () => {},
-	};
-	return (
-		<Actions
-		{...props}
-		options={options}
-		/>
-	);
+
+	_isHtml(str) {
+		const regex = /<[a-z][\s\S]*>/i;
+		const match = regex.exec(str);
+		if(match) {
+			return true;
+		}
+		return false;
 	}
 
 	render() {

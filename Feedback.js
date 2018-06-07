@@ -3,7 +3,7 @@ import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AutoGrowingTextInput } from 'react-native-autogrow-textinput';
 import StarRating from 'react-native-star-rating';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { endChat, getStats } from './api';
+import { getStats, submitFeedback } from './api';
 
 
 
@@ -63,7 +63,6 @@ export default class InfoForm extends Component {
           starCount: 2.5,
           endTime: new Date()
         };
-        endChat();
       }
     
     onStarRatingPress(rating, context) {
@@ -75,6 +74,34 @@ export default class InfoForm extends Component {
         this.setState({
             feedback: text || ''
         });
+    }
+
+    getStarColor(id) {
+        const count = this.state[`${id}StarCount`];
+        let color = '#16a085';
+        switch(count) { 
+            case 1: { 
+               color = '#e74c3c'; 
+               break; 
+            }
+            case 2: { 
+                color = '#f39c12';
+                break; 
+            }
+            case 3: { 
+                color = '#2980b9'; 
+                break; 
+            }
+            case 4: { 
+                color = '#2ecc71';
+                break; 
+            } 
+            case 5: { 
+                color = '#16a085'; 
+                break; 
+            } 
+        }
+        return color;
     }
 
     render() {
@@ -92,7 +119,7 @@ export default class InfoForm extends Component {
                         maxStars={5}
                         rating={this.state.firstStarCount}
                         selectedStar={(rating) => this.onStarRatingPress(rating, 'first')}
-                        fullStarColor={'#e67e22'}
+                        fullStarColor={this.getStarColor('first')}
                         containerStyle={{
                             justifyContent: 'center',
                             alignItems: 'center'}}
@@ -109,7 +136,7 @@ export default class InfoForm extends Component {
                         maxStars={5}
                         rating={this.state.secondStarCount}
                         selectedStar={(rating) => this.onStarRatingPress(rating, 'second')}
-                        fullStarColor={'#e67e22'}
+                        fullStarColor={this.getStarColor('second')}
                         containerStyle={{
                             justifyContent: 'center',
                             alignItems: 'center'}}
@@ -126,7 +153,7 @@ export default class InfoForm extends Component {
                         maxStars={5}
                         rating={this.state.thirdStarCount}
                         selectedStar={(rating) => this.onStarRatingPress(rating, 'third')}
-                        fullStarColor={'#e67e22'}
+                        fullStarColor={this.getStarColor('third')}
                         containerStyle={{
                             justifyContent: 'center',
                             alignItems: 'center'}}
@@ -145,13 +172,23 @@ export default class InfoForm extends Component {
                 </View>
                 <Button
 					style={s.button}
-					onPress={() => this.props.navigation.navigate('Home', {data: {...this.state}})}
-					title='Submit'
+					onPress={() => {
+                        submitFeedback({
+                            rating1: this.state.firstStarCount,
+                            rating2: this.state.secondStarCount,
+                            rating3: this.state.thirdStarCount,
+                            msg: this.state.feedback
+                        });
+                        this.props.navigation.navigate('Home', {data: {...this.state}})
+                        
+                    }}
+                    title='Submit'
+                    disabled={!(this.state.firstStarCount || this.state.secondStarCount || this.state.thirdStarCount || this.state.feedback)}
 				/>
 
                 <View>
-                    <Text style={s.info}>{`Total Session:${sessionTime}`}</Text>
-                    <Text style={s.info}>{`Total Waiting:${waitTime}`}</Text>
+                    <Text style={s.info}>{`Total Session: ${sessionTime}`}</Text>
+                    <Text style={s.info}>{`Total Waiting: ${waitTime}`}</Text>
                 </View>
             </ScrollView>
         )

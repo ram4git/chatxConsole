@@ -1,10 +1,10 @@
 import * as SignalR from '@aspnet/signalr';
 import moment from 'moment';
+import RNFetchBlob from 'react-native-fetch-blob';
 import GUID from 'uuid/v1';
 import ClientInfo from './chat/ClientInfo';
 import LoginParams from './chat/LoginParams';
-
-
+import { postFeedback, reportChatBegin, reportStartSession, reportStopSession } from './service';
 
 
 const SERVER_URL = 'https://bswegain.bswhealth.org/system';
@@ -33,6 +33,7 @@ let SESSION_ID = '';
 let START_TIME = '  ';
 let END_TIME = '';
 let CHAT_BEGIN_TIME = '';
+let pSessionId;
 
 
 export function checkAgentAvailability() {
@@ -44,13 +45,14 @@ export function checkAgentAvailability() {
 
 export function setChatBeginTime() {
     CHAT_BEGIN_TIME = new Date();
+    reportChatBegin(START_TIME, CHAT_BEGIN_TIME, pSessionId );
 }
 
 export function getStats() {
 
     return {
         sessionTime: moment(END_TIME).from(START_TIME, true),
-        waitTime: moment(CHAT_BEGIN_TIME).from(START_TIME, true)
+        waitTime: CHAT_BEGIN_TIME ? moment(CHAT_BEGIN_TIME).from(START_TIME, true) : 'N/A'
     }
 }
 
@@ -70,7 +72,7 @@ export function startChatHub(sessionId, onMessageReceived) {
         .catch((error) => console.log('UNABLE TO START WEBSOCKET', error));
 }
 
-export function endChat() {
+export function endChat(sessionId = pSessionId) {
     let formBody = [];
     const encodedKey = encodeURIComponent('attachmentName');
     const encodedValue = encodeURIComponent('dummy');
@@ -100,10 +102,17 @@ export function endChat() {
     .catch(error => {
         console.log('END CHAT FAILED', JSON.stringify(error, null, 2));
     })
+    .finally(() => {
+        reportStopSession(START_TIME, CHAT_BEGIN_TIME, END_TIME, sessionId );
+    });
 }
 
+export function submitFeedback(data) {
+    postFeedback(pSessionId, START_TIME, data);
+}
 
 export function startChat({name, email, phone, subject, accountNumber, region, sessionId}) {
+    pSessionId = sessionId;
     
     const loginParams = new LoginParams()
                             .withName(name)
@@ -124,7 +133,7 @@ export function startChat({name, email, phone, subject, accountNumber, region, s
         clientInfo: clientInfo
       };
 
-    fetch(POST_START,{
+    return fetch(POST_START,{
         method: 'post',
         credentials: 'same-origin',
         headers: {
@@ -134,12 +143,21 @@ export function startChat({name, email, phone, subject, accountNumber, region, s
         },
         body: _stringify(body)
     })
-    // .then(print)
+    .then(response => {
+        print(response);
+        if (response.ok) {
+            return response;
+        } else {
+            const errorMessage = `${response.status} (${response.statusText})`;
+            throw(new Error(errorMessage));
+        }
+    })
     .then(res => {
         //console.log('EXTRACTED SESSION ID=', res.headers.map[x-egain-chat-session][0]);
         //console.log('RESPONSE HEADERS=', JSON.stringify(res.headers.map['x-egain-chat-session'], null, 2));
         SESSION_ID = res.headers.map['x-egain-chat-session'][0];
-        return res.json()
+        reportStartSession(sessionId);
+        return res;
     })
     .catch(error => {
         console.log('START FAILED', JSON.stringify(error, null, 2));
@@ -148,8 +166,6 @@ export function startChat({name, email, phone, subject, accountNumber, region, s
 
 export function sendMessage(body) {
     console.log('GOT MESSAGE TO SEND=' + JSON.stringify(body, null, 2));
-    console.log('SEND SESSION ID=' + SESSION_ID);
-
     fetch(POST_SEND,{
         method: 'post',
         credentials: 'include',
@@ -183,7 +199,7 @@ export function acceptAttachment(data) {
         headers: {
             'Accept': 'application/json, application/xml',
             'Content-Type': 'application/x-www-form-urlencoded',
-            'X-egain-chat-session': SESSION_ID,
+            'X-egain-chat-session': SESSION_ID
         },
         body: formBody
     })
@@ -239,9 +255,17 @@ export function sendAttachment(data) {
     const attachmentId = GUID();
     data.fileId = attachmentId;
     data.fileInternalName = `${attachmentId}_${data.fileName}`;
-    data.fileSize = 13289;
 
-    sendAttachmentNotification(data);
+    RNFetchBlob.fs.stat(data.image)
+    .then((stats) => {
+        console.log('RNFETCH=', JSON.stringify(stats, null, 2));
+        data.fileSize = stats.size;
+        sendAttachmentNotification(data);
+    })
+    .catch((err) => {
+        console.log('ERROR=RNFETCH=', JSON.stringify(err, null, 2));
+    })
+
 
 }
 
@@ -274,7 +298,9 @@ export function sendAttachmentNotification(data) {
         body: formBody,
     })
     .then(print)
-    .then(this.uploadAttachment(data))
+    .then( (resp) => {
+        uploadAttachment(data);
+    })
     .catch(error => {
         console.log('ACCEPT ATTACHMENT NOTIFICATION FAILED', JSON.stringify(error, null, 2));
     });
@@ -282,28 +308,57 @@ export function sendAttachmentNotification(data) {
 
 export function uploadAttachment(data) {
     console.log('UPLOAD ATTACHMENT=', JSON.stringify(data, null, 2));
-    const formData = new FormData();
-    formData.append('fileId', data.fileId);
-    formData.append(data.fileInternalName,)
+    const { fileId, fileInternalName, fileName, image } = data;
 
 
-    fetch(POST_UPLOAD_ATTACHMENT, {
-        method: 'post',
-        credentials: 'include',
-        headers: {
-            'Accept': data.acceptAttachment,
-            'Content-Type': 'multipart/form-data',
-            'X-egain-chat-session': SESSION_ID,
-        },
-        body: formData,
+
+    // RNFetchBlob.fetch('POST', POST_UPLOAD_ATTACHMENT, { 
+    //     'Content-Type' : 'multipart/form-data',
+    //     'Accept': 'application/json, application/xml',
+    //     'X-egain-chat-session': SESSION_ID
+    // }, [
+    //     { name : 'fileId', data : fileId },
+    //     { name : fileInternalName, filename: fileName,  data: RNFetchBlob.wrap(data.image) }
+    // ])
+    // .then(this.print.bind(this))
+    // .catch(error => {
+    //     console.log('ACCEPT ATTACHMENT FAILED', JSON.stringify(error, null, 2));
+    // });;
+
+
+    RNFetchBlob.fs.readFile(image, 'base64')
+    .then((imageBlob) => {
+        console.log('IMAGE DATA=', JSON.stringify(imageBlob, null, 2));
+        const formData = new FormData();
+        formData.append('fileId', fileId);
+        formData.append(fileInternalName, imageBlob, fileName);
+
+        console.log('MULTI-PART', JSON.stringify(formData, null, 2));
+
+
+        fetch(POST_UPLOAD_ATTACHMENT, {
+            method: 'post',
+            headers: {
+                'Accept': 'application/json, application/xml',
+                'Content-Type': 'multipart/form-data',
+                'X-egain-chat-session': SESSION_ID,
+            },
+            body: formData,
+        })
+        .then(this.print.bind(this))
+        .catch(error => {
+            console.log('ACCEPT ATTACHMENT FAILED', JSON.stringify(error, null, 2));
+        });
     })
-    .then(print)
-    .then(status)
-    .catch(error => {
-        console.log('ACCEPT ATTACHMENT FAILED', JSON.stringify(error, null, 2));
-    });
 
+    // const task = RNFetchBlob.fs.fetch('GET', data.image)
 
+    // task.then((data) => {
+    //     console.log('IMG DATA=', JSON.stringify(data, null, 2));
+    // })
+    // .catch((err) => {
+    //     console.log(err)
+    // });
 }
 
 function _stringify(body) {

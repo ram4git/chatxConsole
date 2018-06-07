@@ -5,7 +5,7 @@ import ChatScreen from './Chat';
 import FeedbackScreen from './Feedback';
 import UserFormScreen from './InfoForm';
 import LandingScreen from './Landing';
-
+import './ReactotronConfig';
 
 
 const styles = StyleSheet.create({
@@ -16,7 +16,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-
 
 // Navigator
 const StackNavigtor = StackNavigator(
